@@ -1,0 +1,32 @@
+# Environment files
+.env
+backend/.env
+frontend/.env
+frontend/.env.local
+
+# Python cache
+backend/__pycache__/
+backend/*.pyc
+
+# Runtime state/logs
+backend/state.json
+backend/output/
+frontend/output/
+*.log
+
+# Frontend build/deps
+frontend/node_modules/
+frontend/.next/
+frontend/.next-dev/
+frontend/.next-prod/
+frontend/test-results/
+frontend/coverage/
+frontend/tsconfig.tsbuildinfo
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Local export artifacts
+project_code_dump.txt
+export_project_code.py
