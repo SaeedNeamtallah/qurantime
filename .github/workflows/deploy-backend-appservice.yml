@@ -1,4 +1,4 @@
-name: Build and deploy Node.js app to Azure Web App - qurantime
+name: Build and deploy Next.js app to Azure Web App - qurantime
 
 on:
   push:
@@ -6,21 +6,28 @@ on:
       - main
   workflow_dispatch:
 
+env:
+  APP_PATH: "new q"
+  AZURE_WEBAPP_NAME: "qurantime"
+  NODE_VERSION: "22"
+
 jobs:
   build:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: "./new q"
+        working-directory: ${{ env.APP_PATH }}
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          node-version: "22"
-          cache: "npm"
-          cache-dependency-path: "./new q/package-lock.json"
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ${{ env.APP_PATH }}/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -28,32 +35,49 @@ jobs:
       - name: Build app
         run: npm run build
 
-      - name: Zip artifact
-        run: zip -r release.zip .next-prod package.json package-lock.json public scripts next.config.mjs src
+      - name: Prepare standalone runtime
+        shell: bash
+        run: |
+          mkdir -p .next-prod/standalone/.next-prod
+          cp -R .next-prod/static .next-prod/standalone/.next-prod/static
+
+          if [ -d public ]; then
+            cp -R public .next-prod/standalone/public
+          fi
+
+          cp ../quran_offline.json .next-prod/quran_offline.json
+
+      - name: Create deployment package
+        shell: bash
+        run: |
+          zip -r release.zip \
+            .next-prod \
+            scripts/start-standalone.mjs \
+            package.json
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: "./new q/release.zip"
+          path: ${{ env.APP_PATH }}/release.zip
 
   deploy:
     runs-on: ubuntu-latest
     needs: build
     environment:
       name: Production
+      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
 
     steps:
-      - uses: actions/download-artifact@v4
+      - name: Download artifact
+        uses: actions/download-artifact@v4
         with:
           name: node-app
 
-      - name: Unzip artifact
-        run: unzip release.zip
-
       - name: Deploy to Azure Web App
+        id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
-          app-name: "qurantime"
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          package: .
+          package: release.zip
